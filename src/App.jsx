@@ -10,8 +10,8 @@ function App() {
     <div className="d-flex flex-column min-vh-100">
       <Header />
 
-      {/* Container NON fluid + px-5: centrato con più spazio a destra e sinistra */}
-      <Container as="main" className="flex-grow-1 px-5">
+      {/* Container NON fluid: la griglia arriva ai bordi del container, stessa larghezza di nav e hero (che riempiono tutto il loro Container) */}
+      <Container as="main" className="flex-grow-1">
         <Row className="g-4">
           {libri.map((libro) => (
             // key = asin: identificatore univoco di ogni libro
