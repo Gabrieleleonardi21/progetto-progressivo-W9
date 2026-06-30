@@ -14,6 +14,8 @@ function BookCard({ book }) {
       />
       <Card.Body className="d-flex flex-column">
         <Card.Title className="fs-6">{book.title}</Card.Title>
+        <Card.Title className="fs-6">{book.price}</Card.Title>
+        <Card.Title className="fs-6">{book.category}</Card.Title>
       </Card.Body>
     </Card>
   );
