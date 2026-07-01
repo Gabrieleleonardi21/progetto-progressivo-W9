@@ -1,0 +1,7 @@
+/* Copertina libro: scatola con la forma di una copertina (verticale 2:3).
+   Cosi cover riempie tutta la card e ritaglia pochissimo; le colonne sono
+   larghe uguali, quindi tutte le card hanno la stessa altezza */
+.book-cover {
+  width: 100%;
+  aspect-ratio: 2 / 3;
+}

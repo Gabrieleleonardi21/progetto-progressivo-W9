@@ -4,13 +4,12 @@ import { Card } from "react-bootstrap";
 function BookCard({ book }) {
   return (
     <Card className="h-100">
-      {/* aspect-ratio 2/3 = rettangolo verticale (formato copertina); cover riempie e ritaglia l'eccesso */}
+      {/* book-cover = altezza fissa uguale per tutte le card; cover riempie tutta la scatola ritagliando l'eccesso */}
       <Card.Img
         variant="top"
         src={book.img}
         alt={book.title}
-        className="object-fit-cover"
-        style={{ aspectRatio: "2 / 3" }}
+        className="object-fit-cover book-cover"
       />
       <Card.Body className="d-flex flex-column">
         <Card.Title className="fs-6">{book.title}</Card.Title>
