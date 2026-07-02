@@ -3,7 +3,7 @@ import { Container, Row, Col } from "react-bootstrap";
 import Header from "./assets/componets/header";
 import Hero from "./assets/componets/hero";
 import SearchBar from "./assets/componets/searchbar";
-import BookCard from "./assets/componets/card";
+import BookWithReviews from "./assets/componets/bookWithReviews";
 import Footer from "./assets/componets/footer";
 import libri from "./assets/data/fantasy.json"; // 150 libri fantasy
 
@@ -35,7 +35,7 @@ function App() {
           {libriFiltrati.map((libro) => (
             // key = asin: identificatore univoco di ogni libro
             <Col key={libro.asin} xs={12} sm={6} md={4} lg={4}>
-              <BookCard book={libro} />
+              <BookWithReviews book={libro} />
             </Col>
           ))}
         </Row>
