@@ -219,7 +219,9 @@ function ReviewSection({ book }) {
   const media = averageRating(reviews);
 
   return (
-    <div className="border rounded shadow-sm p-3">
+    // review-panel: colonna flex vincolata alla viewport → il form (e il bottone
+    // "Invia") resta sempre visibile, solo la lista in mezzo scorre.
+    <div className="border rounded shadow-sm p-3 review-panel">
       {/* Titolo del libro selezionato */}
       <h5 className="mb-3">{book.title}</h5>
 

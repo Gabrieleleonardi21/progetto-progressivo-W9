@@ -13,9 +13,22 @@
   min-width: 0;
 }
 
-/* Lista recensioni scrollabile: evita che il pannello cresca all'infinito
-   quando un libro ha molte recensioni. */
+/* Pannello recensioni: colonna flex alta al massimo quanto la viewport (meno il
+   top:1rem dello sticky + 1rem di respiro sotto). Così titolo e form restano
+   sempre visibili e solo la lista in mezzo scorre → il bottone "Invia" è sempre
+   raggiungibile anche su schermi bassi. */
+.review-panel {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 2rem);
+}
+
+/* Lista recensioni: unica parte scrollabile, con la sua barra dedicata.
+   flex:1 la fa espandere/comprimere nello spazio rimasto; min-height:0 le
+   permette di rimpicciolirsi sotto il suo contenuto (senza, sfonderebbe
+   spingendo il form fuori schermo). */
 .review-list {
-  max-height: 60vh;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
 }
