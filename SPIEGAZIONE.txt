@@ -15,14 +15,17 @@ Leggilo dall'alto verso il basso: prima la mappa generale, poi i dettagli.
  1. PANORAMICA E STRUTTURA DEI FILE
 ===========================================================================
 
-L'app mostra 150 libri fantasy (da un file JSON locale) in una griglia. A
-fianco della griglia c'è una SEZIONE RECENSIONI SEMPRE VISIBILE: quando si
-clicca un libro, la sezione mostra le sue recensioni (lette dall'API), dove si
-possono leggere, aggiungere ed eliminare recensioni. Le recensioni NON stanno
-nel browser: vivono su un'API online (Striveschool) e viaggiano via HTTP.
+L'app mostra 150 libri fantasy (da un file JSON locale) in una griglia.
+Cliccando un libro, a fianco della griglia compare una SEZIONE RECENSIONI che
+mostra le sue recensioni (lette dall'API), dove si possono leggere, aggiungere
+ed eliminare recensioni. Un SECONDO click sullo stesso libro lo deseleziona e
+fa sparire la sezione (la griglia torna a tutta larghezza). Le recensioni NON
+stanno nel browser: vivono su un'API online (Striveschool) e viaggiano via HTTP.
+
+L'interfaccia è in tema SCURO (Bootstrap 5.3, data-bs-theme="dark" sull'<html>).
 
 Idea centrale del progetto (l'esercizio "Miglioriamo EpiBooks"):
-  - un solo libro per volta è "selezionato";
+  - un solo libro per volta è "selezionato" (oppure nessuno);
   - QUALE libro è selezionato è uno stato che vive in ALTO, in App
     (elevazione dello stato / "lifting state up");
   - la griglia e la sezione recensioni ricevono quello stato e reagiscono.
@@ -31,18 +34,20 @@ File principali:
 
   src/App.jsx
       Punto di partenza. Tiene la barra di ricerca E il libro selezionato
-      (lo stato "elevato"). Disegna la griglia dei libri a sinistra e la
-      sezione recensioni a destra.
+      (lo stato "elevato"), con il toggle di selezione (handleSelect). Disegna
+      la griglia a sinistra e, SOLO se un libro è selezionato, la sezione
+      recensioni a destra.
 
   src/assets/componets/card.jsx  (BookCard)
       Solo aspetto grafico della card. Nessuna logica: al click avvisa App
       (onSelect) e si evidenzia se è la card selezionata (selected).
 
   src/assets/componets/reviewSection.jsx
-      La sezione recensioni, SEMPRE visibile. È il "cervello": riceve il libro
-      selezionato, carica le sue recensioni, gestisce invio ed eliminazione.
-      Contiene due sotto-componenti:
-        - ReviewList  -> la lista delle recensioni + bottone "Elimina";
+      La sezione recensioni (visibile quando un libro è selezionato). È il
+      "cervello": riceve il libro selezionato, carica le sue recensioni,
+      gestisce invio ed eliminazione. Contiene due sotto-componenti:
+        - ReviewList  -> la lista (ogni recensione è una mini-card) + icona
+                         cestino per eliminare;
         - ReviewForm  -> il form per scrivere una nuova recensione.
 
   src/assets/componets/stars.jsx  (Stars)
@@ -86,8 +91,9 @@ Come sono collegati (i dati scendono via "prop", gli eventi risalgono):
   quali commenti mostrare): perciò vive in App, il padre di entrambi.
 
 Gli eventi risalgono invece tramite funzioni passate come prop: BookCard non
-sa cosa succede al click, chiama solo onSelect(); è App a decidere (aggiorna
-selectedBook).
+sa cosa succede al click, chiama solo onSelect(); è App a decidere. La sua
+handleSelect fa da TOGGLE: se clicchi un libro diverso lo seleziona, se
+riclicchi quello già selezionato riporta selectedBook a null (deselezione).
 
 
 ===========================================================================
@@ -116,8 +122,15 @@ A) App.jsx — testo cercato e libro selezionato (i due stati "elevati")
      const [selectedBook, setSelectedBook] = useState(null);
    - query:        filtra la griglia a ogni carattere digitato.
    - selectedBook: il libro attualmente scelto (null = nessuno). Da qui la
-                   card capisce se evidenziarsi e la sezione quali recensioni
-                   caricare.
+                   card capisce se evidenziarsi e se mostrare la sezione.
+     Il toggle (deseleziona al secondo click) usa la forma "a funzione" per
+     confrontare il click con la selezione corrente:
+       function handleSelect(libro) {
+         setSelectedBook((corrente) => {
+           if (corrente?.asin === libro.asin) return null; // stesso libro: chiudi
+           return libro;                                   // libro diverso: apri
+         });
+       }
 
 B) reviewSection.jsx (ReviewSection) — le recensioni del libro scelto
      const [reviews, setReviews] = useState([]);   // le recensioni
@@ -409,10 +422,14 @@ Il percorso dell'eliminazione:
 ===========================================================================
 
   Selezioni un libro
-     click sulla card -> onSelect -> setSelectedBook (in App)
-     -> ReviewSection riceve il nuovo "book"
+     click sulla card -> onSelect -> handleSelect -> setSelectedBook (in App)
+     -> compare ReviewSection, che riceve il nuovo "book"
      -> useEffect [book] scatta -> GET -> setReviews/setLoading
      -> la sezione mostra media, lista e form del libro scelto.
+
+  Deselezioni (secondo click sullo stesso libro)
+     click sulla card già scelta -> handleSelect -> setSelectedBook(null)
+     -> la sezione recensioni sparisce, la griglia torna a tutta larghezza.
 
   Scrivi una recensione
      compili il form -> handleSubmit -> handleAdd -> POST -> setReviews
