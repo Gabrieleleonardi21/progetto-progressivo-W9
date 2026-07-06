@@ -1,0 +1,432 @@
+===========================================================================
+ COME FUNZIONA L'APPLICAZIONE — libreria fantasy con recensioni
+===========================================================================
+
+Questo documento spiega l'intera app, con particolare attenzione a:
+  - gli HOOKS di React (useState / useEffect) e perché sono usati;
+  - le FETCH verso l'API (GET, POST, DELETE) e come sono scritte;
+  - l'ELEVAZIONE DELLO STATO e il perché di useEffect al posto di
+    componentDidUpdate.
+
+Leggilo dall'alto verso il basso: prima la mappa generale, poi i dettagli.
+
+
+===========================================================================
+ 1. PANORAMICA E STRUTTURA DEI FILE
+===========================================================================
+
+L'app mostra 150 libri fantasy (da un file JSON locale) in una griglia. A
+fianco della griglia c'è una SEZIONE RECENSIONI SEMPRE VISIBILE: quando si
+clicca un libro, la sezione mostra le sue recensioni (lette dall'API), dove si
+possono leggere, aggiungere ed eliminare recensioni. Le recensioni NON stanno
+nel browser: vivono su un'API online (Striveschool) e viaggiano via HTTP.
+
+Idea centrale del progetto (l'esercizio "Miglioriamo EpiBooks"):
+  - un solo libro per volta è "selezionato";
+  - QUALE libro è selezionato è uno stato che vive in ALTO, in App
+    (elevazione dello stato / "lifting state up");
+  - la griglia e la sezione recensioni ricevono quello stato e reagiscono.
+
+File principali:
+
+  src/App.jsx
+      Punto di partenza. Tiene la barra di ricerca E il libro selezionato
+      (lo stato "elevato"). Disegna la griglia dei libri a sinistra e la
+      sezione recensioni a destra.
+
+  src/assets/componets/card.jsx  (BookCard)
+      Solo aspetto grafico della card. Nessuna logica: al click avvisa App
+      (onSelect) e si evidenzia se è la card selezionata (selected).
+
+  src/assets/componets/reviewSection.jsx
+      La sezione recensioni, SEMPRE visibile. È il "cervello": riceve il libro
+      selezionato, carica le sue recensioni, gestisce invio ed eliminazione.
+      Contiene due sotto-componenti:
+        - ReviewList  -> la lista delle recensioni + bottone "Elimina";
+        - ReviewForm  -> il form per scrivere una nuova recensione.
+
+  src/assets/componets/stars.jsx  (Stars)
+      Le 5 stelline. In sola lettura mostra il voto; cliccabili diventano
+      l'input del voto nel form.
+
+  src/assets/utils/reviews.js
+      Il livello che parla con l'API. Qui stanno le fetch (GET/POST/DELETE) e
+      il calcolo della media. Nessuna grafica, solo dati.
+
+  .env.local
+      Contiene il TOKEN dell'API. È ignorato da git (non finisce nel repo).
+
+
+Come sono collegati (i dati scendono via "prop", gli eventi risalgono):
+
+  App  (STATO: query, selectedBook)
+   ├─ BookCard (x150)      -> onSelect fa risalire ad App il libro cliccato
+   └─ ReviewSection        -> riceve il libro selezionato (prop "book")
+        ├─ ReviewList      -> una riga per recensione + "Elimina"
+        └─ ReviewForm      -> campi nome / voto / commento
+
+
+===========================================================================
+ 2. CONCETTI BASE: COMPONENTI, PROP, STATO, "STATO ELEVATO"
+===========================================================================
+
+- COMPONENTE: una funzione che ritorna del "JSX" (la grafica). Es. BookCard.
+
+- PROP (proprietà): i dati che un componente PADRE passa a un FIGLIO. Sono in
+  sola lettura per il figlio. Le prop scendono sempre verso il basso.
+
+- STATO (state): dati che possono CAMBIARE nel tempo (es. il libro scelto,
+  l'elenco recensioni, il testo cercato). Quando lo stato cambia, React
+  ridisegna in automatico solo ciò che serve.
+
+- ELEVAZIONE DELLO STATO ("lifting state up"): quando due componenti diversi
+  hanno bisogno dello STESSO dato, quel dato si mette nel loro PADRE comune e
+  scende a entrambi come prop. Qui il "libro selezionato" serve sia alla
+  griglia (per evidenziare la card) sia alla sezione recensioni (per sapere
+  quali commenti mostrare): perciò vive in App, il padre di entrambi.
+
+Gli eventi risalgono invece tramite funzioni passate come prop: BookCard non
+sa cosa succede al click, chiama solo onSelect(); è App a decidere (aggiorna
+selectedBook).
+
+
+===========================================================================
+ 3. GLI HOOKS
+===========================================================================
+
+Gli "hooks" sono funzioni speciali di React (iniziano con "use") che danno
+super-poteri ai componenti. Qui usiamo useState e useEffect.
+
+---------------------------------------------------------------------------
+ 3.1  useState  — memorizzare un valore che cambia
+---------------------------------------------------------------------------
+
+Sintassi:
+    const [valore, setValore] = useState(valoreIniziale);
+
+  - "valore"    -> il dato attuale;
+  - "setValore" -> la funzione per cambiarlo. NON si modifica mai "valore" a
+                   mano: si chiama sempre setValore(...). Solo così React sa
+                   che deve ridisegnare.
+
+Dove lo usiamo:
+
+A) App.jsx — testo cercato e libro selezionato (i due stati "elevati")
+     const [query, setQuery] = useState("");
+     const [selectedBook, setSelectedBook] = useState(null);
+   - query:        filtra la griglia a ogni carattere digitato.
+   - selectedBook: il libro attualmente scelto (null = nessuno). Da qui la
+                   card capisce se evidenziarsi e la sezione quali recensioni
+                   caricare.
+
+B) reviewSection.jsx (ReviewSection) — le recensioni del libro scelto
+     const [reviews, setReviews] = useState([]);   // le recensioni
+     const [loading, setLoading] = useState(false);// sto caricando?
+   - reviews:  l'array delle recensioni. È LA fonte di verità: da qui si
+               calcolano media e conteggio mostrati nella sezione.
+   - loading:  true mentre la fetch è in corso, per mostrare "Caricamento…"
+               invece di far apparire per un attimo "nessuna recensione".
+
+C) reviewSection.jsx (ReviewForm) — i campi del form
+     const [author, setAuthor]   = useState("");
+     const [rating, setRating]   = useState(0);
+     const [comment, setComment] = useState("");
+     const [errore, setErrore]   = useState("");
+   Ogni casella è un "controlled input": il valore è tenuto in uno stato e a
+   ogni digitazione onChange chiama la set corrispondente. "errore" contiene
+   il messaggio rosso (voto mancante, commento vuoto, invio fallito): se è
+   vuoto, non si vede nulla.
+
+Aggiornare lo stato con la forma "a funzione":
+     setReviews((precedenti) => [...precedenti, creata]);
+   Quando il nuovo valore dipende dal precedente, si passa una funzione che
+   riceve il valore corrente. È più sicuro che scrivere [...reviews, creata]
+   perché lavora sempre sull'ultimo valore reale.
+
+---------------------------------------------------------------------------
+ 3.2  useEffect  — reagire ai cambiamenti (al posto di componentDidUpdate)
+---------------------------------------------------------------------------
+
+L'esercizio chiede di ricaricare le recensioni quando cambia il libro
+selezionato, citando "componentDidUpdate". Quello è un metodo del LIFECYCLE
+dei componenti a CLASSE. In questo progetto usiamo i function component, e
+l'equivalente con gli hooks è useEffect:
+
+     useEffect(() => {
+       // ...codice da eseguire...
+     }, [book]);   // <- "array delle dipendenze"
+
+Come leggerlo: "esegui questo codice quando 'book' cambia". È esattamente il
+compito di componentDidUpdate ("ho ricevuto una prop diversa: reagisco"). Non
+serve convertire in classe: stessa logica, hook al posto del lifecycle.
+
+Promemoria sulle dipendenze:
+   []      -> esegui una sola volta (al montaggio);
+   [book]  -> riesegui ogni volta che 'book' cambia (il nostro caso);
+   niente  -> esegui a ogni render.
+
+Il nostro effetto in reviewSection.jsx (versione commentata):
+
+     useEffect(() => {
+       // Nessun libro selezionato: non c'è niente da caricare.
+       if (!book) return;
+
+       // Guard anti-race-condition (vedi sotto).
+       let attivo = true;
+
+       async function carica() {
+         setLoading(true);
+         try {
+           // Usa l'id del libro selezionato per recuperare le recensioni.
+           const dati = await getReviews(book.asin);
+           if (attivo) setReviews(dati);
+         } catch (err) {
+           console.error("Caricamento recensioni:", err);
+         } finally {
+           if (attivo) setLoading(false);
+         }
+       }
+
+       carica();
+
+       // Cleanup: gira prima del prossimo effetto (o allo smontaggio).
+       return () => {
+         attivo = false;
+       };
+     }, [book]);
+
+Due dettagli importanti:
+
+  - IL FETCH STA IN UNA FUNZIONE async INTERNA ("carica"). Motivo pratico: la
+    funzione passata a useEffect non può essere async, e inoltre chiamare
+    setState "in modo sincrono" nel corpo dell'effetto è sconsigliato (React
+    lo segnala). Mettendo il lavoro in "carica" i setState avvengono dentro la
+    parte asincrona.
+
+  - IL "CLEANUP" E IL FLAG attivo (race condition). Se clicchi in fretta il
+    libro A e poi il libro B, partono due fetch: quella di A potrebbe
+    rispondere DOPO quella di B e sovrascrivere i dati sbagliati. La funzione
+    ritornata dall'effetto (il cleanup) gira PRIMA del successivo effetto e
+    mette attivo=false: così la risposta "vecchia" di A viene ignorata
+    (if (attivo) ...) e resta ciò che riguarda B.
+
+NB: non usiamo più useEffect per un caricamento "una tantum": qui l'effetto
+serve proprio a REAGIRE al cambio di libro selezionato, che è il cuore
+dell'esercizio.
+
+
+===========================================================================
+ 4. LE FETCH VERSO L'API
+===========================================================================
+
+Tutte le chiamate stanno in un unico file: src/assets/utils/reviews.js.
+Tenerle separate dalla grafica rende il codice più ordinato e riutilizzabile.
+
+Endpoint base:
+     https://striveschool-api.herokuapp.com/api/comments
+
+Ogni recensione dell'API ha questa forma:
+     {
+       _id:       "id univoco generato dal server",
+       comment:   "il testo",
+       rate:      4,                    // voto numerico 1-5
+       author:    "nome",
+       elementId: "asin del libro",     // collega la recensione al libro
+       createdAt: "data ISO"
+     }
+
+---------------------------------------------------------------------------
+ 4.1  Autenticazione (il token)
+---------------------------------------------------------------------------
+
+L'API accetta le richieste solo con un token (una specie di password)
+nell'intestazione "Authorization". Il token sta in .env.local:
+
+     const TOKEN = import.meta.env.VITE_STRIVE_TOKEN;
+
+     function authHeaders() {
+       return { Authorization: `Bearer ${TOKEN}` };
+     }
+
+authHeaders() è un piccolo helper: crea l'intestazione una volta sola e viene
+riusato da tutte le chiamate (così il token non è scritto in più punti).
+
+IMPORTANTE: dopo aver creato/modificato .env.local devi RIAVVIARE "npm run
+dev". Vite legge i file .env solo all'avvio; altrimenti TOKEN è "undefined" e
+l'API risponde 401 (non autorizzato).
+
+---------------------------------------------------------------------------
+ 4.2  async / await in breve
+---------------------------------------------------------------------------
+
+fetch(...) non risponde subito: fa una richiesta in rete e "prometterà" una
+risposta più tardi (una Promise). "await" mette in pausa la funzione finché la
+risposta non arriva; "async" davanti alla funzione permette di usare await al
+suo interno.
+
+     async function getReviews(asin) {
+       const res = await fetch(...);   // aspetto la risposta HTTP
+       return res.json();              // aspetto la conversione in oggetti JS
+     }
+
+res.ok è true se lo stato HTTP è 2xx. Se è false lanciamo un errore così chi
+chiama la funzione può accorgersene (try/catch).
+
+---------------------------------------------------------------------------
+ 4.3  GET — leggere le recensioni del libro selezionato
+---------------------------------------------------------------------------
+
+     export async function getReviews(asin) {
+       const res = await fetch(`${BASE}/${asin}`, { headers: authHeaders() });
+       if (!res.ok) throw new Error(`GET recensioni fallita (${res.status})`);
+       return res.json();
+     }
+
+- URL: BASE + "/" + asin. L'asin del libro fa da "elementId": l'API
+  restituisce solo le recensioni di QUEL libro.
+- Metodo: GET (predefinito di fetch, non serve scriverlo).
+- Ritorna: un array di recensioni.
+
+Chi la usa? reviewSection.jsx, dentro l'useEffect visto sopra: appena cambia
+il libro selezionato, chiama getReviews(book.asin) e salva il risultato in
+"reviews".
+
+---------------------------------------------------------------------------
+ 4.4  POST — aggiungere una recensione
+---------------------------------------------------------------------------
+
+     export async function addReview(asin, { comment, rate, author }) {
+       const res = await fetch(BASE, {
+         method: "POST",
+         headers: {
+           ...authHeaders(),
+           "Content-Type": "application/json",
+         },
+         body: JSON.stringify({ comment, rate, author, elementId: asin }),
+       });
+       if (!res.ok) throw new Error(`POST recensione fallita (${res.status})`);
+       return res.json();
+     }
+
+- Metodo: POST (crea un nuovo dato).
+- headers: oltre al token, "Content-Type: application/json" per dire all'API
+  che il corpo è JSON.
+- body: i dati da salvare, convertiti in testo con JSON.stringify. Mandiamo
+  comment, rate, author ed elementId (= asin, per collegare al libro). NON
+  mandiamo _id né createdAt: li genera il server.
+- Ritorna: la recensione appena creata (completa di _id e createdAt).
+
+Il percorso completo dell'invio:
+
+  ReviewForm.handleSubmit (reviewSection.jsx)
+    -> valida voto e commento (se mancano, setErrore e stop)
+    -> await onAdd({ author, rate, comment })   // onAdd = handleAdd della sezione
+    -> se OK: window.alert("Recensione inviata!") e svuota il form
+    -> se errore: setErrore("Invio non riuscito, riprova.") e tiene i dati
+
+  handleAdd (ReviewSection)
+    async function handleAdd(nuova) {
+      const creata = await addReview(book.asin, nuova);   // usa l'id selezionato
+      setReviews((precedenti) => [...precedenti, creata]);// aggiorna la lista
+    }
+
+Aggiornando "reviews" nello stato, React ridisegna da solo lista e media.
+Non serve rifare la GET.
+
+---------------------------------------------------------------------------
+ 4.5  DELETE — eliminare una recensione
+---------------------------------------------------------------------------
+
+     export async function deleteReview(id) {
+       const res = await fetch(`${BASE}/${id}`, {
+         method: "DELETE",
+         headers: authHeaders(),
+       });
+       if (!res.ok) throw new Error(`DELETE recensione fallita (${res.status})`);
+     }
+
+ATTENZIONE alla differenza con la GET:
+   - GET usa l'ASIN del libro  (elementId)  -> tutte le recensioni del libro;
+   - DELETE usa l'_id della RECENSIONE      -> quella singola recensione.
+
+Il percorso dell'eliminazione:
+
+  Bottone "Elimina" in ReviewList (reviewSection.jsx)
+    -> onClick={() => onDelete(r._id)}       // passa l'_id della recensione
+
+  handleDelete (ReviewSection)
+    async function handleDelete(id) {
+      if (!window.confirm("Eliminare questa recensione?")) return; // conferma
+      try {
+        await deleteReview(id);                                    // DELETE
+        setReviews((prec) => prec.filter((r) => r._id !== id));    // rimuovi
+      } catch (err) {
+        console.error("Eliminazione recensione:", err);
+      }
+    }
+
+- Il confirm chiede conferma PRIMA di toccare l'API (niente cancellazioni per
+  sbaglio). Se annulli, la funzione esce subito.
+- Rimuoviamo la recensione dallo stato SOLO se la DELETE è andata a buon fine
+  (il filter tiene tutte le recensioni con _id diverso da quello eliminato).
+
+
+===========================================================================
+ 5. IL CALCOLO DELLA MEDIA
+===========================================================================
+
+     export function averageRating(reviews) {
+       if (reviews.length === 0) return 0;
+       const somma = reviews.reduce((tot, r) => tot + Number(r.rate), 0);
+       return somma / reviews.length;
+     }
+
+- Se non ci sono recensioni ritorna 0 (evita la divisione per zero).
+- reduce somma tutti i voti; Number(r.rate) forza il voto a numero, così se
+  arrivasse come stringa non si rischia una concatenazione ("4"+"5" = "45").
+- Non è una fetch e non è un hook: è pura logica sui dati già in memoria.
+  Viene richiamata a ogni render con l'array "reviews" aggiornato, quindi la
+  media mostrata è sempre allineata allo stato.
+
+
+===========================================================================
+ 6. SICUREZZA
+===========================================================================
+
+- XSS: i testi scritti dagli utenti (nome, commento) sono messi in pagina con
+  le graffe di React ({r.comment}). React li tratta come TESTO, non come HTML:
+  eventuale codice inserito non viene eseguito. Non usiamo mai innerHTML.
+
+- TOKEN: sta in .env.local (ignorato da git) e non nel codice sorgente. Nota
+  onesta: essendo un'app solo frontend, al momento della build il token finisce
+  comunque nel pacchetto scaricato dal browser. .env.local serve a non
+  committarlo nel repository, non a renderlo davvero segreto: per una vera
+  segretezza servirebbe un backend proprio che faccia da tramite con l'API.
+
+
+===========================================================================
+ 7. RIEPILOGO DEL FLUSSO (dal click ai dati)
+===========================================================================
+
+  Selezioni un libro
+     click sulla card -> onSelect -> setSelectedBook (in App)
+     -> ReviewSection riceve il nuovo "book"
+     -> useEffect [book] scatta -> GET -> setReviews/setLoading
+     -> la sezione mostra media, lista e form del libro scelto.
+
+  Scrivi una recensione
+     compili il form -> handleSubmit -> handleAdd -> POST -> setReviews
+     -> alert "Recensione inviata!" -> lista e media si aggiornano.
+
+  Elimini una recensione
+     "Elimina" -> handleDelete -> confirm -> DELETE -> setReviews (filter)
+     -> la recensione sparisce da lista e media.
+
+Filo conduttore:
+   - useState (App)           tiene QUALE libro è selezionato (stato elevato);
+   - useEffect [book]         reagisce al cambio libro e ricarica (al posto di
+                              componentDidUpdate);
+   - le fetch (reviews.js)    parlano con l'API (GET/POST/DELETE);
+   - React                    quando lo stato cambia, ridisegna da solo la
+                              griglia e la sezione recensioni.
+===========================================================================
