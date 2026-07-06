@@ -21,6 +21,20 @@ function App() {
     libro.title.toLowerCase().includes(query.toLowerCase())
   );
 
+  // Toggle della selezione: un click seleziona il libro, un secondo click sullo
+  // stesso libro lo deseleziona (facendo sparire la sezione recensioni).
+  function handleSelect(libro) {
+    setSelectedBook((corrente) => {
+      if (corrente?.asin === libro.asin) return null;
+      return libro;
+    });
+  }
+
+  // La griglia occupa tutta la larghezza quando nessun libro è selezionato,
+  // altrimenti lascia 4 colonne al pannello recensioni.
+  let colonneLibri = 12;
+  if (selectedBook) colonneLibri = 8;
+
   return (
     // Colonna alta quanto la viewport: spinge il footer a fondo pagina anche con poco contenuto
     <div className="d-flex flex-column min-vh-100">
@@ -32,34 +46,39 @@ function App() {
 
       <Container as="main" className="flex-grow-1">
         <Row className="g-4">
-          {/* Colonna sinistra: griglia dei libri */}
-          <Col lg={8}>
+          {/* Colonna sinistra: griglia dei libri (larghezza dinamica) */}
+          <Col lg={colonneLibri}>
             {/* Nessun risultato: messaggio al posto della griglia vuota */}
             {libriFiltrati.length === 0 && (
-              <p className="text-center text-muted py-5">Nessun libro trovato</p>
+              <p className="text-center text-body-secondary py-5">
+                Nessun libro trovato
+              </p>
             )}
             <Row className="g-4">
               {libriFiltrati.map((libro) => (
                 // key = asin: identificatore univoco di ogni libro
                 <Col key={libro.asin} xs={12} sm={6} lg={4}>
-                  {/* onSelect eleva la scelta ad App; selected evidenzia la card scelta */}
+                  {/* onSelect (toggle) eleva la scelta ad App; selected evidenzia la card */}
                   <BookCard
                     book={libro}
                     selected={selectedBook?.asin === libro.asin}
-                    onSelect={() => setSelectedBook(libro)}
+                    onSelect={() => handleSelect(libro)}
                   />
                 </Col>
               ))}
             </Row>
           </Col>
 
-          {/* Colonna destra: recensioni SEMPRE visibili del libro selezionato.
-              position-sticky la tiene a vista mentre si scorrono i libri. */}
-          <Col lg={4}>
-            <div className="position-sticky" style={{ top: "1rem" }}>
-              <ReviewSection book={selectedBook} />
-            </div>
-          </Col>
+          {/* Colonna destra: appare solo con un libro selezionato; il secondo
+              click sullo stesso libro la fa sparire. position-sticky la tiene a
+              vista mentre si scorrono i libri. */}
+          {selectedBook && (
+            <Col lg={4}>
+              <div className="position-sticky" style={{ top: "1rem" }}>
+                <ReviewSection book={selectedBook} />
+              </div>
+            </Col>
+          )}
         </Row>
       </Container>
 

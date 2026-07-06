@@ -21,7 +21,9 @@ function labelRecensioni(n) {
 function ReviewList({ reviews, onDelete }) {
   if (reviews.length === 0) {
     return (
-      <p className="text-muted">Ancora nessuna recensione. Scrivi la prima!</p>
+      <p className="text-body-secondary">
+        Ancora nessuna recensione. Scrivi la prima!
+      </p>
     );
   }
 
