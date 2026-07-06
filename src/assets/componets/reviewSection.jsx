@@ -1,7 +1,5 @@
 import { useState, useEffect } from "react";
 import { Form, Button } from "react-bootstrap";
-// Import diretto della singola icona: evita il "barrel" con ~2000 icone che
-// Vite 8 non riesce a pre-ottimizzare in dev (import { Trash } from "..." dava errore).
 import Trash from "react-bootstrap-icons/dist/icons/trash";
 import Stars from "./stars";
 import {
@@ -226,7 +224,9 @@ function ReviewSection({ book }) {
       <h5 className="mb-3">{book.title}</h5>
 
       {/* Durante la fetch mostriamo l'attesa invece del riepilogo/lista */}
-      {loading && <p className="text-body-secondary">Caricamento recensioni…</p>}
+      {loading && (
+        <p className="text-body-secondary">Caricamento recensioni…</p>
+      )}
 
       {!loading && (
         <>
