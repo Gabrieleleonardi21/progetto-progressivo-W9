@@ -5,3 +5,17 @@
   width: 100%;
   aspect-ratio: 2 / 3;
 }
+
+/* Fa funzionare .text-truncate dentro un contenitore flex: senza min-width:0
+   il figlio non si restringe e le email lunghe escono dai bordi (o schiacciano
+   le stelline accanto). */
+.min-w-0 {
+  min-width: 0;
+}
+
+/* Lista recensioni scrollabile: evita che il pannello cresca all'infinito
+   quando un libro ha molte recensioni. */
+.review-list {
+  max-height: 60vh;
+  overflow-y: auto;
+}
